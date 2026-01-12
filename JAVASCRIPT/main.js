@@ -2174,20 +2174,6 @@ document.addEventListener("DOMContentLoaded", function () {
     observer.observe(step);
   });
 
-  // Test function
-  function testCurrency() {
-    console.log("=== CURRENCY TEST ===");
-    console.log("User Currency:", detectCurrency);
-    console.log("Currency Symbol:", currencySymbol);
-    console.log("Exchange Rate:", exchangeRate);
-    console.log("Sample conversion (49.99):", formatPrice(49.99));
-    console.log("LocalStorage currency:", localStorage.getItem("userCurrency"));
-    console.log("=== END TEST ===");
-  }
-
-  // Call after page loads
-  setTimeout(testCurrency, 3000);
-
   // Test connection on load
   console.log("User dashboard JavaScript loaded successfully!");
 });
