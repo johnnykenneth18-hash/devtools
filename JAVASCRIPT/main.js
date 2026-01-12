@@ -1237,6 +1237,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Advanced currency detection
     async detectCurrency() {
+      // Check if detected currency is supported
+      if (this.supportedCurrencies.includes(detectedCurrency)) {
+        this.userCurrency = detectedCurrency;
+      } else {
+        this.userCurrency = "USD"; // Default
+      }
+
       // 1. Check localStorage
       const saved = localStorage.getItem("preferredCurrency");
       if (saved && this.currencyData[saved]) {
@@ -1250,6 +1257,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
 
       console.log("🌐 Detecting from:", { lang, tz });
+
+      this.currencySymbol = this.currencyData[this.userCurrency]?.symbol || "$";
 
       if (
         lang.includes("NG") ||
@@ -1275,6 +1284,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Save detection
       localStorage.setItem("preferredCurrency", this.userCurrency);
+      localStorage.setItem("currencySymbol", this.currencySymbol);
+
+      console.log("📍 Currency detected:", {
+        detected: detectedCurrency,
+        using: this.userCurrency,
+        symbol: this.currencySymbol,
+      }); 
     }
 
     async detectFromMultipleSources() {
@@ -1663,18 +1679,29 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Switch currency
     async switchCurrency(newCurrency) {
-      if (!this.currencyData[newCurrency]) {
-        console.error("Invalid currency:", newCurrency);
-        return false;
-      }
-
-      this.userCurrency = newCurrency;
-      this.currencySymbol = this.currencyData[newCurrency].symbol;
-
-      localStorage.setItem("preferredCurrency", newCurrency);
-
-      console.log(`🔄 Switched to ${newCurrency} ${this.currencySymbol}`);
-      return true;
+        if (!this.supportedCurrencies.includes(newCurrency)) {
+            console.error("Unsupported currency:", newCurrency);
+            return false;
+        }
+        
+        console.log(`🔄 Switching currency from ${this.userCurrency} to ${newCurrency}`);
+        
+        // Update currency
+        this.userCurrency = newCurrency;
+        this.currencySymbol = this.currencyData[newCurrency]?.symbol || '$';
+        
+        // Save preference
+        localStorage.setItem('preferredCurrency', newCurrency);
+        localStorage.setItem('currencySymbol', this.currencySymbol);
+        
+        // Update UI
+        this.updateAllPrices();
+        this.updateCurrencySelector();
+        
+        // Show notification
+        this.showCurrencyNotification(newCurrency);
+        
+        return true;
     }
 
     updateCurrencySelector() {
