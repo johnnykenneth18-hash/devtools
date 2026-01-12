@@ -41,18 +41,51 @@ document.addEventListener("DOMContentLoaded", function () {
   initApp();
 
   async function initApp() {
-    console.log("Initializing app...");
-    addPaymentStyles();
+    console.log("🚀 Initializing DevTools Pro...");
 
-    // Detect currency first
-    await detectUserCurrency();
+    try {
+      // 1. Add CSS styles first
+      addProductCardStyles();
+      addPaymentStyles();
 
-    setupEventListeners();
-    await loadProducts();
-    setupTestimonialSlider();
-    setupCurrencySelector(); // Add this if using selector
+      // 2. Setup event listeners
+      setupEventListeners();
 
-    console.log("App initialized with currency:", userCurrency);
+      // 3. Initialize currency manager (if you're using it)
+      if (typeof currencyManager !== "undefined") {
+        await currencyManager.initialize();
+        console.log("💰 Currency initialized:", currencyManager.userCurrency);
+      }
+
+      // 4. Load and display products
+      await loadProducts();
+
+      // 5. Setup other components
+      setupTestimonialSlider();
+      setupCurrencySelectorUI();
+
+      console.log("✅ App fully initialized");
+
+      // Check if products are displayed
+      setTimeout(() => {
+        const productCards = document.querySelectorAll(".product-card");
+        console.log(`🎯 Found ${productCards.length} product cards on page`);
+
+        if (productCards.length === 0) {
+          console.warn("⚠️ No product cards found! Checking products grid...");
+          console.log("Products grid exists:", !!productsGrid);
+          console.log(
+            "Products grid HTML:",
+            productsGrid?.innerHTML?.substring(0, 200)
+          );
+        }
+      }, 1000);
+    } catch (error) {
+      console.error("❌ App initialization failed:", error);
+      showErrorModal(
+        "Failed to initialize application. Please refresh the page."
+      );
+    }
   }
 
   function setupEventListeners() {
@@ -213,8 +246,122 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // ============ DISPLAY PRODUCTS FUNCTION ============
+
+  async function displayProducts(products) {
+    console.log("🔄 Displaying products...");
+
+    if (!productsGrid) {
+      console.error("❌ Products grid element not found!");
+      return;
+    }
+
+    // Clear loading state
+    productsGrid.innerHTML = "";
+
+    if (!products || products.length === 0) {
+      productsGrid.innerHTML = `
+            <div class="no-products" style="text-align: center; padding: 3rem; color: #6c757d; grid-column: 1 / -1;">
+                <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 1rem; color: var(--gray);"></i>
+                <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No products available</h3>
+                <p>Check back soon for new tools!</p>
+            </div>
+        `;
+      console.log("ℹ️ No products to display");
+      return;
+    }
+
+    console.log(
+      `📦 Displaying ${products.length} products in ${currencyManager.userCurrency}`
+    );
+
+    // Create product cards
+    products.forEach((product) => {
+      const productCard = document.createElement("div");
+      productCard.className = `product-card ${
+        product.featured ? "featured" : ""
+      }`;
+
+      // Get formatted price using currency manager
+      const formattedPrice = currencyManager
+        ? currencyManager.formatPrice(product.price)
+        : `$${product.price.toFixed(2)}`;
+
+      productCard.innerHTML = `
+            <div class="product-image">
+                <img src="${product.image || getDefaultImage()}" 
+                     alt="${product.name}" 
+                     onerror="this.onerror=null; this.src='${getDefaultImage()}'"
+                     loading="lazy">
+                ${
+                  product.featured
+                    ? '<div class="featured-badge"><i class="fas fa-star"></i> FEATURED</div>'
+                    : ""
+                }
+            </div>
+            <div class="product-info">
+                <h3>${product.name}</h3>
+                <p class="product-description">${
+                  product.description || "No description available"
+                }</p>
+                <div class="product-price">
+                    <div class="price" data-original-price="${product.price}">
+                        ${formattedPrice}
+                    </div>
+                    <button class="btn-buy" data-product-id="${
+                      product.id
+                    }" data-product-name="${product.name}">
+                        <i class="fas fa-shopping-cart"></i> Buy Now
+                    </button>
+                </div>
+            </div>
+        `;
+
+      productsGrid.appendChild(productCard);
+
+      // Add click event to buy button
+      const buyButton = productCard.querySelector(".btn-buy");
+      buyButton.addEventListener("click", () => {
+        console.log(`🛒 Buying product: ${product.name}`);
+        startPurchase(product);
+      });
+    });
+
+    // Add hover effects and animations
+    addProductCardAnimations();
+
+    console.log("✅ Products displayed successfully");
+  }
+
+  // Helper function for default image
+  function getDefaultImage() {
+    return "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80";
+  }
+
+  // Add animations to product cards
+  function addProductCardAnimations() {
+    const productCards = document.querySelectorAll(".product-card");
+
+    productCards.forEach((card, index) => {
+      // Staggered animation
+      card.style.animationDelay = `${index * 0.1}s`;
+      card.classList.add("animate-in");
+
+      // Hover effect
+      card.addEventListener("mouseenter", () => {
+        card.style.transform = "translateY(-10px)";
+      });
+
+      card.addEventListener("mouseleave", () => {
+        card.style.transform = "translateY(0)";
+      });
+    });
+  }
+
+  // ============ UPDATED LOAD PRODUCTS FUNCTION ============
+
   async function loadProducts() {
-    console.log("Loading products from Supabase...");
+    console.log("📥 Loading products...");
     showLoading();
 
     try {
@@ -226,18 +373,18 @@ document.addEventListener("DOMContentLoaded", function () {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error loading products from Supabase:", error);
+        console.error("❌ Error loading products from Supabase:", error);
         // Fallback to mock data
         const mockProducts = getMockProducts();
-        displayProducts(mockProducts);
+        await displayProducts(mockProducts);
         return;
       }
 
-      console.log("Products loaded from Supabase:", products);
+      console.log(`✅ Loaded ${products?.length || 0} products from Supabase`);
 
       if (!products || products.length === 0) {
-        console.log("No products found in database");
-        displayProducts([]);
+        console.log("ℹ️ No products found in database");
+        await displayProducts([]);
         return;
       }
 
@@ -251,18 +398,19 @@ document.addEventListener("DOMContentLoaded", function () {
         featured: product.featured || false,
       }));
 
-      displayProducts(formattedProducts);
+      await displayProducts(formattedProducts);
     } catch (error) {
-      console.error("Error loading products:", error);
+      console.error("❌ Error loading products:", error);
       // Fallback to mock data
       const mockProducts = getMockProducts();
-      displayProducts(mockProducts);
+      await displayProducts(mockProducts);
       showError("Failed to load products. Please try again later.");
     } finally {
       hideLoading();
     }
   }
 
+  // Mock products for fallback
   function getMockProducts() {
     return [
       {
@@ -304,52 +452,223 @@ document.addEventListener("DOMContentLoaded", function () {
     ];
   }
 
-  function getDefaultImage() {
-    return "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80";
-  }
+  // ============ CSS FOR PRODUCT CARDS ============
 
-  function displayProducts(products) {
-    if (!productsGrid) return;
+  function addProductCardStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+        /* Product Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        /* Product Card */
+        .product-card {
+            background: white;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(38, 70, 83, 0.05);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideUp 0.5s ease forwards;
+        }
+        
+        .product-card.animate-in {
+            animation: slideUp 0.5s ease forwards;
+        }
+        
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .product-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(38, 70, 83, 0.1);
+            border-color: rgba(42, 157, 143, 0.2);
+        }
+        
+        /* Product Image */
+        .product-image {
+            position: relative;
+            height: 200px;
+            background: linear-gradient(135deg, #f1faee 0%, #e9f5db 100%);
+            overflow: hidden;
+        }
+        
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        
+        .product-card:hover .product-image img {
+            transform: scale(1.05);
+        }
+        
+        /* Featured Badge */
+        .featured-badge {
+            position: absolute;
+            top: 15px;
+            right: -30px;
+            background: var(--accent);
+            color: var(--dark);
+            padding: 5px 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transform: rotate(45deg);
+            z-index: 1;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .featured-badge i {
+            font-size: 0.7rem;
+        }
+        
+        /* Product Info */
+        .product-info {
+            padding: 1.5rem;
+        }
+        
+        .product-info h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.8rem;
+            color: var(--dark);
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        
+        .product-description {
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 4.5em;
+        }
+        
+        /* Product Price */
+        .product-price {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+        
+        .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            transition: all 0.3s ease;
+        }
+        
+        .price-updated {
+            animation: pricePulse 0.5s ease;
+        }
+        
+        @keyframes pricePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Buy Button */
+        .btn-buy {
+            background: var(--gradient);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(42, 157, 143, 0.2);
+            white-space: nowrap;
+        }
+        
+        .btn-buy:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(42, 157, 143, 0.3);
+        }
+        
+        .btn-buy:active {
+            transform: translateY(0);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .products-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1.5rem;
+            }
+            
+            .product-info {
+                padding: 1.2rem;
+            }
+            
+            .product-info h3 {
+                font-size: 1.2rem;
+            }
+            
+            .product-description {
+                font-size: 0.9rem;
+                -webkit-line-clamp: 2;
+                min-height: 3em;
+            }
+            
+            .price {
+                font-size: 1.3rem;
+            }
+            
+            .btn-buy {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+            
+            .featured-badge {
+                font-size: 0.7rem;
+                padding: 4px 25px;
+                top: 12px;
+                right: -25px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .product-price {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .btn-buy {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    `;
 
-    productsGrid.innerHTML = "";
-
-    products.forEach((product) => {
-      const productCard = document.createElement("div");
-      productCard.className = `product-card ${
-        product.featured ? "featured" : ""
-      }`;
-      productCard.innerHTML = `
-            <div class="product-image">
-                <img src="${product.image}" alt="${
-        product.name
-      }" onerror="this.src='${getDefaultImage()}'">
-                ${
-                  product.featured
-                    ? '<div class="featured-badge">FEATURED</div>'
-                    : ""
-                }
-            </div>
-            <div class="product-info">
-                <h3>${product.name}</h3>
-                <p>${product.description}</p>
-                <div class="product-price">
-                    <div class="price" data-original-price="${product.price}">
-                        ${currencyManager.formatPrice(product.price)}
-                    </div>
-                    <button class="btn-buy" data-product-id="${product.id}">
-                        <i class="fas fa-shopping-cart"></i> Buy Now
-                    </button>
-                </div>
-            </div>
-        `;
-
-      productsGrid.appendChild(productCard);
-
-      const buyButton = productCard.querySelector(".btn-buy");
-      buyButton.addEventListener("click", () => {
-        startPurchase(product);
-      });
-    });
+    document.head.appendChild(style);
   }
 
   function startPurchase(product) {
