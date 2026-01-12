@@ -1512,20 +1512,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ============ PROFESSIONAL CURRENCY SYSTEM ============
 
-  // ============ INITIALIZE CURRENCY MANAGER ============
 
-  // Create global instance
-  const currencyManager = new SafeCurrencyManager() ();
-
-  // Initialize when page loads
-  document.addEventListener("DOMContentLoaded", async () => {
-    await currencyManager.initialize();
-
-    // Update products after currency is set
-    if (typeof loadProducts === "function") {
-      await loadProducts();
-    }
-  });
 
   // ============ MAIN SETUP PAYMENT FLOW FUNCTION ============
 
