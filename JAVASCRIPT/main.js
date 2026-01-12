@@ -1135,7 +1135,7 @@ document.addEventListener("DOMContentLoaded", function () {
       this.userCurrency = "USD";
       this.currencySymbol = "$";
       this.exchangeRates = { USD: 1, NGN: 1500, EUR: 0.92, GBP: 0.79 };
-      this.currencyData = this.createSafeCurrencyData();;
+      this.currencyData = this.createSafeCurrencyData();
       this.isInitialized = false;
       this.supportedCurrencies = ["USD", "NGN", "EUR", "GBP"];
     }
@@ -1506,57 +1506,102 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("⚠️ Using fallback currency: USD");
     }
 
+    // ============ FIX THE FORMATPRICE METHOD ============
+
+    // Replace the current formatPrice method with this:
     formatPrice(amount, currencyCode = null) {
       try {
         const currency = currencyCode || this.userCurrency;
 
-        // SAFE: Get currency data with fallback
-        const currencyInfo =
-          this.currencyData[currency] || this.currencyData.USD;
+        // SAFE ACCESS: Get currency info with fallback
+        const currencyInfo = this.currencyData[currency] ||
+          this.currencyData["USD"] || {
+            code: currency || "USD",
+            symbol: this.getSymbol(currency || "USD"),
+            decimal_places: 2,
+            thousands_separator: ",",
+            decimal_separator: ".",
+            symbol_position: "before",
+          };
 
         // Convert amount
-        const rate = this.exchangeRates[currency] || 1;
-        const converted = amount * rate;
+        const convertedAmount = this.convertPrice(amount, "USD", currency);
 
-        // Format based on currency
-        if (currency === "NGN") {
-          // Naira: ₦1,500.00
-          return `₦${converted.toLocaleString("en-NG", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`;
-        } else if (currency === "EUR") {
-          // Euro: €1.234,56
-          return `€${converted.toFixed(2).replace(".", ",")}`;
-        } else if (currency === "GBP") {
-          // Pound: £1,234.56
-          return `£${converted.toLocaleString("en-GB", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`;
+        // Format number safely
+        let formattedNumber;
+
+        try {
+          formattedNumber = convertedAmount.toLocaleString("en-US", {
+            minimumFractionDigits: currencyInfo.decimal_places || 2,
+            maximumFractionDigits: currencyInfo.decimal_places || 2,
+            useGrouping: true,
+          });
+
+          // Apply separators safely
+          if (
+            currencyInfo.thousands_separator &&
+            currencyInfo.thousands_separator !== ","
+          ) {
+            formattedNumber = formattedNumber.replace(
+              /,/g,
+              currencyInfo.thousands_separator
+            );
+          }
+          if (
+            currencyInfo.decimal_separator &&
+            currencyInfo.decimal_separator !== "."
+          ) {
+            formattedNumber = formattedNumber.replace(
+              /\./g,
+              currencyInfo.decimal_separator
+            );
+          }
+        } catch (formatError) {
+          // Fallback formatting
+          formattedNumber = convertedAmount.toFixed(
+            currencyInfo.decimal_places || 2
+          );
+        }
+
+        // Add currency symbol
+        const symbol = currencyInfo.symbol || this.getSymbol(currency);
+        if (currencyInfo.symbol_position === "before") {
+          return `${symbol}${formattedNumber}`;
         } else {
-          // Dollar: $1,234.56
-          return `$${converted.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`;
+          return `${formattedNumber}${symbol}`;
         }
       } catch (error) {
-        console.error("❌ Price formatting error:", error);
+        console.error("❌ Error in formatPrice:", error);
         // Ultimate fallback
         return `$${amount.toFixed(2)}`;
       }
     }
 
-    convertPrice(amount, fromCurrency = "USD", toCurrency = null) {
-      const to = toCurrency || this.userCurrency;
+    // Add this helper method if not exists:
+    getSymbol(currencyCode) {
+      const symbols = {
+        USD: "$",
+        NGN: "₦",
+        EUR: "€",
+        GBP: "£",
+      };
+      return symbols[currencyCode] || "$";
+    }
 
-      if (fromCurrency === to) return amount;
+    // Convert and format price
+    convertPrice(amount, fromCurrency = "USD", toCurrency = null) {
+      const targetCurrency = toCurrency || this.userCurrency;
+
+      if (fromCurrency === targetCurrency) return amount;
 
       const fromRate = this.exchangeRates[fromCurrency] || 1;
-      const toRate = this.exchangeRates[to] || 1;
+      const toRate = this.exchangeRates[targetCurrency] || 1;
 
-      return (amount / fromRate) * toRate;
+      // Convert: amount in fromCurrency → USD → targetCurrency
+      const amountInUSD = amount / fromRate;
+      const convertedAmount = amountInUSD * toRate;
+
+      return convertedAmount;
     }
 
     // Update all prices on the page
@@ -2132,7 +2177,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Test function
   function testCurrency() {
     console.log("=== CURRENCY TEST ===");
-    console.log("User Currency:", userCurrency);
+    console.log("User Currency:", detectCurrency);
     console.log("Currency Symbol:", currencySymbol);
     console.log("Exchange Rate:", exchangeRate);
     console.log("Sample conversion (49.99):", formatPrice(49.99));
