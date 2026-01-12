@@ -80,6 +80,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+
+
   // Emergency fallback function
   async function loadProductsWithoutCurrency() {
     console.log("🆘 Loading products WITHOUT currency...");
@@ -260,6 +262,8 @@ document.addEventListener("DOMContentLoaded", function () {
       menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
     }
   }
+
+
 
   // Add this GLOBAL formatPrice function at the beginning of your file
   function formatPrice(amount, currencyCode = null) {
@@ -1511,7 +1515,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ============ INITIALIZE CURRENCY MANAGER ============
 
   // Create global instance
-  const currencyManager = new CurrencyManager();
+  const currencyManager = new SafeCurrencyManager() ();
 
   // Initialize when page loads
   document.addEventListener("DOMContentLoaded", async () => {
@@ -1797,16 +1801,7 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("Showing step:", stepNumber);
   }
 
-  // ============ INITIALIZE APP ============
 
-  function initApp() {
-    console.log("Initializing app...");
-    addPaymentStyles();
-    setupEventListeners();
-    loadProducts();
-    setupTestimonialSlider();
-    console.log("App initialized successfully");
-  }
 
   // Dynamic layout adjustments
   function optimizeLayout() {
