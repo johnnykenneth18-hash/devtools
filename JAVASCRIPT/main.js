@@ -44,18 +44,20 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("🚀 Initializing DevTools Pro...");
 
     try {
+      window.currencyManager = new SafeCurrencyManager();
+      await window.currencyManager.initialize();
+
+      console.log(
+        "💰 Currency set to:",
+        window.currencyManager.userCurrency,
+        window.currencyManager.currencySymbol
+      );
       // 1. Add CSS styles first
       addProductCardStyles();
       addPaymentStyles();
 
       // 2. Setup event listeners
       setupEventListeners();
-
-      // 3. Initialize currency manager (if you're using it)
-      if (typeof currencyManager !== "undefined") {
-        await currencyManager.initialize();
-        console.log("💰 Currency initialized:", currencyManager.userCurrency);
-      }
 
       // 4. Load and display products
       await loadProducts();
@@ -86,6 +88,58 @@ document.addEventListener("DOMContentLoaded", function () {
         "Failed to initialize application. Please refresh the page."
       );
     }
+  }
+
+  // Emergency fallback function
+  async function loadProductsWithoutCurrency() {
+    console.log("🆘 Loading products WITHOUT currency...");
+
+    const productsGrid = document.getElementById("products-grid");
+    if (!productsGrid) return;
+
+    // Simple static products
+    const mockProducts = [
+      {
+        id: 1,
+        name: "SEO Analyzer Pro",
+        description: "Advanced SEO analysis tool",
+        price: 49.99,
+        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71",
+        featured: true,
+      },
+      {
+        id: 2,
+        name: "Code Optimizer",
+        description: "Optimize JavaScript and CSS",
+        price: 79.99,
+        image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c",
+        featured: false,
+      },
+    ];
+
+    // Simple display
+    productsGrid.innerHTML = mockProducts
+      .map(
+        (product) => `
+        <div class="product-card">
+            <div class="product-image">
+                <img src="${product.image}" alt="${product.name}">
+                ${
+                  product.featured ? '<div class="featured">FEATURED</div>' : ""
+                }
+            </div>
+            <div class="product-info">
+                <h3>${product.name}</h3>
+                <p>${product.description}</p>
+                <div class="price">$${product.price.toFixed(2)}</div>
+                <button class="btn-buy">Buy Now</button>
+            </div>
+        </div>
+    `
+      )
+      .join("");
+
+    console.log("🆘 Emergency products displayed");
   }
 
   function setupEventListeners() {
@@ -1080,10 +1134,47 @@ document.addEventListener("DOMContentLoaded", function () {
     constructor() {
       this.userCurrency = "USD";
       this.currencySymbol = "$";
-      this.exchangeRates = { USD: 1 };
-      this.currencyData = {};
+      this.exchangeRates = { USD: 1, NGN: 1500, EUR: 0.92, GBP: 0.79 };
+      this.currencyData = this.createSafeCurrencyData();;
       this.isInitialized = false;
       this.supportedCurrencies = ["USD", "NGN", "EUR", "GBP"];
+    }
+
+    createSafeCurrencyData() {
+      return {
+        USD: {
+          code: "USD",
+          name: "US Dollar",
+          symbol: "$",
+          decimal_places: 2,
+          thousands_separator: ",",
+          decimal_separator: ".",
+        },
+        NGN: {
+          code: "NGN",
+          name: "Nigerian Naira",
+          symbol: "₦",
+          decimal_places: 2,
+          thousands_separator: ",",
+          decimal_separator: ".",
+        },
+        EUR: {
+          code: "EUR",
+          name: "Euro",
+          symbol: "€",
+          decimal_places: 2,
+          thousands_separator: ".",
+          decimal_separator: ",",
+        },
+        GBP: {
+          code: "GBP",
+          name: "British Pound",
+          symbol: "£",
+          decimal_places: 2,
+          thousands_separator: ",",
+          decimal_separator: ".",
+        },
+      };
     }
 
     // Initialize currency system
@@ -1097,7 +1188,7 @@ document.addEventListener("DOMContentLoaded", function () {
         await this.loadCurrencyData();
 
         // 2. Detect user's currency
-        await this.detectUserCurrency();
+        await this.detectCurrency();
 
         // 3. Get fresh exchange rates
         await this.fetchExchangeRates();
@@ -1144,65 +1235,46 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    createDefaultCurrencyData() {
-      this.currencyData = {
-        USD: {
-          code: "USD",
-          name: "US Dollar",
-          symbol: "$",
-          decimal_places: 2,
-          thousands_separator: ",",
-          decimal_separator: ".",
-        },
-        NGN: {
-          code: "NGN",
-          name: "Nigerian Naira",
-          symbol: "₦",
-          decimal_places: 2,
-          thousands_separator: ",",
-          decimal_separator: ".",
-        },
-        EUR: {
-          code: "EUR",
-          name: "Euro",
-          symbol: "€",
-          decimal_places: 2,
-          thousands_separator: ".",
-          decimal_separator: ",",
-        },
-        GBP: {
-          code: "GBP",
-          name: "British Pound",
-          symbol: "£",
-          decimal_places: 2,
-          thousands_separator: ",",
-          decimal_separator: ".",
-        },
-      };
-    }
-
     // Advanced currency detection
-    async detectUserCurrency() {
-      const detectedCurrency = await this.detectFromMultipleSources();
-
-      // Check if detected currency is supported
-      if (this.supportedCurrencies.includes(detectedCurrency)) {
-        this.userCurrency = detectedCurrency;
-      } else {
-        this.userCurrency = "USD"; // Default
+    async detectCurrency() {
+      // 1. Check localStorage
+      const saved = localStorage.getItem("preferredCurrency");
+      if (saved && this.currencyData[saved]) {
+        this.userCurrency = saved;
+        this.currencySymbol = this.currencyData[saved].symbol;
+        return;
       }
 
-      this.currencySymbol = this.currencyData[this.userCurrency]?.symbol || "$";
+      // 2. Simple detection
+      const lang = navigator.language || "";
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
 
-      // Save to localStorage
+      console.log("🌐 Detecting from:", { lang, tz });
+
+      if (
+        lang.includes("NG") ||
+        tz.includes("Lagos") ||
+        tz.includes("Africa")
+      ) {
+        this.userCurrency = "NGN";
+        this.currencySymbol = "₦";
+      } else if (lang.includes("GB") || tz.includes("London")) {
+        this.userCurrency = "GBP";
+        this.currencySymbol = "£";
+      } else if (
+        lang.includes("EU") ||
+        lang.includes("de") ||
+        lang.includes("fr")
+      ) {
+        this.userCurrency = "EUR";
+        this.currencySymbol = "€";
+      } else {
+        this.userCurrency = "USD";
+        this.currencySymbol = "$";
+      }
+
+      // Save detection
       localStorage.setItem("preferredCurrency", this.userCurrency);
-      localStorage.setItem("currencySymbol", this.currencySymbol);
-
-      console.log("📍 Currency detected:", {
-        detected: detectedCurrency,
-        using: this.userCurrency,
-        symbol: this.currencySymbol,
-      });
     }
 
     async detectFromMultipleSources() {
@@ -1434,43 +1506,57 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log("⚠️ Using fallback currency: USD");
     }
 
-    // Convert and format price
-    convertPrice(amount, fromCurrency = "USD", toCurrency = null) {
-      const targetCurrency = toCurrency || this.userCurrency;
+    formatPrice(amount, currencyCode = null) {
+      try {
+        const currency = currencyCode || this.userCurrency;
 
-      if (fromCurrency === targetCurrency) return amount;
+        // SAFE: Get currency data with fallback
+        const currencyInfo =
+          this.currencyData[currency] || this.currencyData.USD;
 
-      const fromRate = this.exchangeRates[fromCurrency] || 1;
-      const toRate = this.exchangeRates[targetCurrency] || 1;
+        // Convert amount
+        const rate = this.exchangeRates[currency] || 1;
+        const converted = amount * rate;
 
-      // Convert: amount in fromCurrency → USD → targetCurrency
-      const amountInUSD = amount / fromRate;
-      const convertedAmount = amountInUSD * toRate;
-
-      return convertedAmount;
+        // Format based on currency
+        if (currency === "NGN") {
+          // Naira: ₦1,500.00
+          return `₦${converted.toLocaleString("en-NG", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`;
+        } else if (currency === "EUR") {
+          // Euro: €1.234,56
+          return `€${converted.toFixed(2).replace(".", ",")}`;
+        } else if (currency === "GBP") {
+          // Pound: £1,234.56
+          return `£${converted.toLocaleString("en-GB", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`;
+        } else {
+          // Dollar: $1,234.56
+          return `$${converted.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`;
+        }
+      } catch (error) {
+        console.error("❌ Price formatting error:", error);
+        // Ultimate fallback
+        return `$${amount.toFixed(2)}`;
+      }
     }
 
-    formatPrice(amount, currencyCode = null) {
-      const currency = currencyCode || this.userCurrency;
-      const currencyInfo = this.currencyData[currency] || this.currencyData.USD;
-      const convertedAmount = this.convertPrice(amount, "USD", currency);
+    convertPrice(amount, fromCurrency = "USD", toCurrency = null) {
+      const to = toCurrency || this.userCurrency;
 
-      // Format based on currency rules
-      const formattedNumber = convertedAmount
-        .toLocaleString("en-US", {
-          minimumFractionDigits: currencyInfo.decimal_places,
-          maximumFractionDigits: currencyInfo.decimal_places,
-          useGrouping: true,
-        })
-        .replace(/,/g, currencyInfo.thousands_separator)
-        .replace(/\./g, currencyInfo.decimal_separator);
+      if (fromCurrency === to) return amount;
 
-      // Add currency symbol
-      if (currencyInfo.symbol_position === "before") {
-        return `${currencyInfo.symbol}${formattedNumber}`;
-      } else {
-        return `${formattedNumber}${currencyInfo.symbol}`;
-      }
+      const fromRate = this.exchangeRates[fromCurrency] || 1;
+      const toRate = this.exchangeRates[to] || 1;
+
+      return (amount / fromRate) * toRate;
     }
 
     // Update all prices on the page
@@ -1532,30 +1618,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Switch currency
     async switchCurrency(newCurrency) {
-      if (!this.supportedCurrencies.includes(newCurrency)) {
-        console.error("Unsupported currency:", newCurrency);
+      if (!this.currencyData[newCurrency]) {
+        console.error("Invalid currency:", newCurrency);
         return false;
       }
 
-      console.log(
-        `🔄 Switching currency from ${this.userCurrency} to ${newCurrency}`
-      );
-
-      // Update currency
       this.userCurrency = newCurrency;
-      this.currencySymbol = this.currencyData[newCurrency]?.symbol || "$";
+      this.currencySymbol = this.currencyData[newCurrency].symbol;
 
-      // Save preference
       localStorage.setItem("preferredCurrency", newCurrency);
-      localStorage.setItem("currencySymbol", this.currencySymbol);
 
-      // Update UI
-      this.updateAllPrices();
-      this.updateCurrencySelector();
-
-      // Show notification
-      this.showCurrencyNotification(newCurrency);
-
+      console.log(`🔄 Switched to ${newCurrency} ${this.currencySymbol}`);
       return true;
     }
 
