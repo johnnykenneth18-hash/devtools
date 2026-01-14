@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function () {
     whatsappButtons.forEach((button) => {
       button.addEventListener("click", () => {
         window.open(
-          "https://wa.me/12345678901?text=Hi%20DevTools%20Pro%20Support%2C%20I%20need%20assistance",
+          "https://api.whatsapp.com/send?phone=12245376239&text=Hi%20DevTools%20Pro%20Support%2C%20I%20need%20assistance",
           "_blank"
         );
       });
@@ -112,6 +112,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Admin login form
+    // Replace the existing admin login code with this:
+    const adminLoginForm = document.getElementById("admin-login-form");
     if (adminLoginForm) {
       adminLoginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -119,16 +121,14 @@ document.addEventListener("DOMContentLoaded", function () {
         const email = document.getElementById("admin-email").value;
         const password = document.getElementById("admin-password").value;
 
-        try {
+        // Simple hardcoded validation
+        if (email === "arinzeadmin@websell.com" && password === "Arinze2002@") {
           showLoading();
-
-          // For demo, simulate successful login
           setTimeout(() => {
             hideLoading();
             window.location.href = "admin.html";
           }, 1000);
-        } catch (error) {
-          hideLoading();
+        } else {
           showError("Invalid email or password");
         }
       });
@@ -162,6 +162,40 @@ document.addEventListener("DOMContentLoaded", function () {
     if (menuToggle) {
       menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
     }
+  }
+
+  // Add this function to properly format WhatsApp URLs
+  function getWhatsAppUrl(phoneNumber, message) {
+    // Format: +12245376239 becomes 12245376239 (no plus sign in URL)
+    const cleanNumber = phoneNumber.replace(/\D/g, "");
+    const encodedMessage = encodeURIComponent(message);
+    return `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodedMessage}`;
+  }
+
+  // Update all WhatsApp button clicks
+  whatsappButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const message = "Hi DevTools Pro Support, I need assistance";
+      const whatsappUrl = getWhatsAppUrl("+12245376239", message);
+      window.open(whatsappUrl, "_blank");
+    });
+  });
+
+  // Update payment completion WhatsApp button
+  if (contactWhatsAppBtn) {
+    contactWhatsAppBtn.onclick = () => {
+      const message = `Hi DevTools Pro! I just purchased ${
+        currentProduct.name
+      } for $${currentProduct.price.toFixed(
+        2
+      )}. My payment details are:\n\nBank: ${getBankFullName(
+        selectedBank
+      )}\nAmount: $${currentProduct.price.toFixed(
+        2
+      )}\nOrder Reference: ${generateOrderReference()}`;
+      const whatsappUrl = getWhatsAppUrl("+12245376239", message);
+      window.open(whatsappUrl, "_blank");
+    };
   }
 
   async function loadProducts() {
@@ -353,34 +387,421 @@ document.addEventListener("DOMContentLoaded", function () {
     setupPaymentFlow();
   }
 
+  // ============ PAYMENT HELPER FUNCTIONS (DEFINE FIRST) ============
+
+  function showErrorModal(message) {
+    const errorModal = document.createElement("div");
+    errorModal.className = "modal active";
+    errorModal.innerHTML = `
+        <div class="modal-content animate__animated animate__shakeX">
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Oops!</h3>
+                <p>${message}</p>
+                <button class="btn-primary" onclick="this.closest('.modal').remove()">
+                    OK
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(errorModal);
+  }
+
+  function showSuccessModal(message) {
+    const successModal = document.createElement("div");
+    successModal.className = "modal active";
+    successModal.innerHTML = `
+        <div class="modal-content animate__animated animate__fadeInUp">
+            <div class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <h3>Success!</h3>
+                <p>${message}</p>
+                <button class="btn-primary" onclick="this.closest('.modal').remove()">
+                    Continue
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(successModal);
+  }
+
+  function showProcessing(message) {
+    const processingOverlay = document.createElement("div");
+    processingOverlay.className = "processing-overlay active";
+    processingOverlay.innerHTML = `
+        <div class="processing-content">
+            <div class="spinner"></div>
+            <p>${message}</p>
+        </div>
+    `;
+
+    processingOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 4000;
+    `;
+
+    processingOverlay.querySelector(".processing-content").style.cssText = `
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        text-align: center;
+        min-width: 300px;
+    `;
+
+    document.body.appendChild(processingOverlay);
+
+    setTimeout(() => {
+      if (processingOverlay.parentNode) {
+        processingOverlay.remove();
+      }
+    }, 3000);
+
+    return processingOverlay;
+  }
+
+  function generateOrderReference() {
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
+    return `DT${timestamp}${random}`;
+  }
+
+  function getBankFullName(bankCode) {
+    const banks = {
+      palmpay: "PalmPay",
+      opay: "OPay",
+      moniepoint: "Moniepoint",
+      binance: "Binance Pay",
+      ethereum: "Ethereum",
+    };
+    return banks[bankCode] || "Selected Payment Method";
+  }
+
+  function updateBankInfo(bankCode) {
+    const bankInfo = {
+      palmpay: {
+        name: "PalmPay",
+        accountNumber: "08123456789",
+        accountName: "DevTools Pro",
+        type: "mobile_money",
+      },
+      opay: {
+        name: "OPay",
+        accountNumber: "08098765432",
+        accountName: "DevTools Pro",
+        type: "mobile_money",
+      },
+      moniepoint: {
+        name: "Moniepoint",
+        accountNumber: "07012345678",
+        accountName: "DevTools Pro Enterprises",
+        type: "pos_banking",
+      },
+      binance: {
+        name: "Binance Pay",
+        accountNumber: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+        accountName: "Crypto Wallet",
+        type: "crypto",
+      },
+      ethereum: {
+        name: "Ethereum",
+        accountNumber: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+        accountName: "Crypto Wallet",
+        type: "crypto",
+      },
+    };
+
+    const bank = bankInfo[bankCode] || bankInfo.palmpay;
+
+    // Update bank details in the modal
+    const bankNameElement = document.getElementById("bank-name");
+    const accountNameElement = document.querySelector(
+      ".info-item:nth-child(2) strong"
+    );
+    const accountNumberElement = document.querySelector(
+      ".info-item:nth-child(3) strong"
+    );
+    const amountElement = document.querySelector(
+      ".info-item:nth-child(4) strong"
+    );
+
+    if (bankNameElement) bankNameElement.textContent = bank.name;
+    if (accountNameElement) accountNameElement.textContent = bank.accountName;
+    if (accountNumberElement)
+      accountNumberElement.textContent = bank.accountNumber;
+
+    if (amountElement && currentProduct) {
+      if (bank.type === "crypto") {
+        // Convert USD to crypto (approximate rates)
+        const cryptoAmount = convertToCrypto(bankCode, currentProduct.price);
+        amountElement.textContent = `${cryptoAmount} ${
+          bankCode === "binance" ? "BNB" : "ETH"
+        }`;
+        amountElement.className = "amount crypto";
+      } else {
+        amountElement.textContent = `$${currentProduct.price.toFixed(2)}`;
+        amountElement.className = "amount";
+      }
+    }
+
+    // Also update QR code with bank details
+    let qrData = "";
+    if (bank.type === "crypto") {
+      const cryptoAmount = convertToCrypto(bankCode, currentProduct.price);
+      qrData = `Crypto: ${bank.name}%0AAddress: ${
+        bank.accountNumber
+      }%0AAmount: ${cryptoAmount} ${bankCode === "binance" ? "BNB" : "ETH"}`;
+    } else {
+      qrData = `Bank: ${bank.name}%0AAccount: ${bank.accountNumber}%0AName: ${
+        bank.accountName
+      }%0AAmount: $${
+        currentProduct ? currentProduct.price.toFixed(2) : "0.00"
+      }`;
+    }
+
+    const qrImg = document.querySelector(".qr-code img");
+    if (qrImg) {
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`;
+    }
+
+    // Update QR code label
+    const qrLabel = document.querySelector(".qr-code p");
+    if (qrLabel) {
+      qrLabel.textContent =
+        bank.type === "crypto"
+          ? "Scan wallet address"
+          : "Scan for account details";
+    }
+  }
+
+  function convertToCrypto(bankCode, usdAmount) {
+    // Approximate conversion rates (update these regularly)
+    const rates = {
+      binance: 0.0032, // 1 USD ≈ 0.0032 BNB (example rate)
+      ethereum: 0.0005, // 1 USD ≈ 0.0005 ETH (example rate)
+    };
+
+    const rate = rates[bankCode] || 0.001;
+    return (usdAmount * rate).toFixed(6);
+  }
+
+  function checkBankingApps(selectedBank) {
+    const paymentApps = {
+      palmpay: {
+        android: "com.transsnet.palmpay",
+        ios: "id1478071235",
+        universal: "palmpay://",
+        website: "https://www.palmpay.com",
+      },
+      opay: {
+        android: "com.opay.checkout",
+        ios: "id1450516777",
+        universal: "opay://",
+        website: "https://www.opayweb.com",
+      },
+      moniepoint: {
+        android: "com.moniepoint.android",
+        ios: "id1469551544",
+        universal: "moniepoint://",
+        website: "https://moniepoint.com",
+      },
+      binance: {
+        android: "com.binance.dev",
+        ios: "id1436799971",
+        universal: "binance://",
+        website: "https://www.binance.com",
+      },
+      ethereum: {
+        android: "org.toshi",
+        ios: "id1388444339",
+        universal: "ethereum://",
+        website: "https://metamask.io",
+      },
+    };
+
+    const app = paymentApps[selectedBank] || paymentApps.palmpay;
+    tryOpenBankApp(app);
+  }
+
+  function tryOpenBankApp(bank) {
+    let appOpened = false;
+
+    if (bank.universal) {
+      const universalLink = document.createElement("a");
+      universalLink.href = bank.universal;
+      universalLink.style.display = "none";
+      document.body.appendChild(universalLink);
+
+      const startTime = Date.now();
+      window.addEventListener("blur", function appOpenedListener() {
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime < 100) {
+          appOpened = true;
+          setTimeout(() => {
+            showStep(4);
+            showSuccessModal(
+              "Banking app opened successfully! Please complete the transfer."
+            );
+          }, 500);
+        }
+        window.removeEventListener("blur", appOpenedListener);
+      });
+
+      universalLink.click();
+      document.body.removeChild(universalLink);
+
+      setTimeout(() => {
+        if (!appOpened) {
+          const userAgent =
+            navigator.userAgent || navigator.vendor || window.opera;
+
+          if (/android/i.test(userAgent)) {
+            window.location.href = `https://play.google.com/store/apps/details?id=${bank.android}`;
+            showErrorModal("Bank app not found. Redirecting to download page.");
+          } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            window.location.href = `https://apps.apple.com/app/id${bank.ios}`;
+            showErrorModal("Bank app not found. Redirecting to App Store.");
+          } else {
+            window.open(bank.website, "_blank");
+            showErrorModal(
+              "Bank app not available. Please use the bank's website."
+            );
+          }
+        }
+      }, 500);
+    }
+  }
+
+  function showManualTransferInstructions() {
+    const bankName = document.getElementById("bank-name").textContent;
+    const accountNumber = document.querySelector(
+      ".info-item:nth-child(3) strong"
+    ).textContent;
+    const accountName = document.querySelector(
+      ".info-item:nth-child(2) strong"
+    ).textContent;
+    const amount = document.getElementById("payment-amount").textContent;
+
+    const instructions = `
+        <div class="manual-transfer-instructions">
+            <h3><i class="fas fa-exchange-alt"></i> Manual Transfer Instructions</h3>
+            <div class="instructions-content">
+                <p>Please transfer the payment using these details:</p>
+                <div class="transfer-details">
+                    <div class="detail-item">
+                        <span>Bank:</span>
+                        <strong>${bankName}</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Account Number:</span>
+                        <strong>${accountNumber}</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Account Name:</span>
+                        <strong>${accountName}</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Amount:</span>
+                        <strong class="amount">${amount}</strong>
+                    </div>
+                </div>
+                <div class="instructions-steps">
+                    <p><strong>Steps:</strong></p>
+                    <ol>
+                        <li>Open your bank's mobile app or website</li>
+                        <li>Navigate to "Transfer" or "Send Money"</li>
+                        <li>Enter the account details above</li>
+                        <li>Enter the exact amount: ${amount}</li>
+                        <li>Add reference: ${generateOrderReference()}</li>
+                        <li>Complete the transfer</li>
+                        <li>Click "Contact on WhatsApp" below to send us proof</li>
+                    </ol>
+                </div>
+                <div class="instructions-note">
+                    <p><i class="fas fa-info-circle"></i> <strong>Note:</strong> Your order will be processed after we verify your payment.</p>
+                </div>
+            </div>
+            <div class="instructions-actions">
+                <button class="btn-primary" onclick="showStep(4)">
+                    <i class="fas fa-check-circle"></i> I've Completed the Transfer
+                </button>
+                <button class="btn-secondary" onclick="showStep(3)">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+            </div>
+        </div>
+    `;
+
+    const instructionModal = document.createElement("div");
+    instructionModal.className = "modal active";
+    instructionModal.innerHTML = `
+        <div class="modal-content animate__animated animate__fadeInUp">
+            <button class="close-modal" onclick="closeInstructionModal()">&times;</button>
+            ${instructions}
+        </div>
+    `;
+
+    document.body.appendChild(instructionModal);
+
+    window.closeInstructionModal = function () {
+      instructionModal.remove();
+    };
+  }
+
+  // ============ MAIN SETUP PAYMENT FLOW FUNCTION ============
+
   function setupPaymentFlow() {
+    console.log("Setting up payment flow...");
+
     // Proceed to payment button
     const proceedBtn = document.getElementById("proceed-to-payment");
     if (proceedBtn) {
+      console.log("Found proceed button");
       proceedBtn.onclick = () => {
+        console.log("Proceeding to payment step 2");
         showStep(2);
       };
     }
 
     // Bank selection
-    document.querySelectorAll(".bank-option").forEach((option) => {
+    const bankOptions = document.querySelectorAll(".bank-option");
+    console.log("Found bank options:", bankOptions.length);
+
+    bankOptions.forEach((option) => {
       option.onclick = () => {
+        console.log("Bank selected:", option.dataset.bank);
         document
           .querySelectorAll(".bank-option")
           .forEach((o) => o.classList.remove("selected"));
         option.classList.add("selected");
         selectedBank = option.dataset.bank;
+        console.log("Selected bank stored:", selectedBank);
+
+        updateBankInfo(selectedBank);
       };
     });
 
     // Confirm bank button
     const confirmBankBtn = document.getElementById("confirm-bank");
     if (confirmBankBtn) {
+      console.log("Found confirm bank button");
       confirmBankBtn.onclick = () => {
         if (!selectedBank) {
-          alert("Please select your bank first.");
+          showErrorModal("Please select your bank first.");
           return;
         }
+        console.log("Confirming bank:", selectedBank);
         showStep(3);
       };
     }
@@ -388,35 +809,68 @@ document.addEventListener("DOMContentLoaded", function () {
     // Open bank app button
     const openBankAppBtn = document.getElementById("open-bank-app");
     if (openBankAppBtn) {
+      console.log("Found open bank app button");
       openBankAppBtn.onclick = () => {
-        alert(
-          `Opening ${selectedBank ? selectedBank.toUpperCase() : "bank"} app...`
+        console.log("Open bank app clicked, selected bank:", selectedBank);
+
+        if (!selectedBank) {
+          showErrorModal("Please select a bank first.");
+          return;
+        }
+
+        const processingOverlay = showProcessing(
+          "Checking for banking apps..."
         );
 
-        // Simulate successful payment after delay
         setTimeout(() => {
-          showStep(4);
-          simulateBankRedirect();
-        }, 2000);
+          checkBankingApps(selectedBank);
+
+          if (processingOverlay && processingOverlay.parentNode) {
+            processingOverlay.remove();
+          }
+        }, 1000);
       };
     }
 
     // Manual transfer button
     const manualTransferBtn = document.getElementById("manual-transfer");
     if (manualTransferBtn) {
+      console.log("Found manual transfer button");
       manualTransferBtn.onclick = () => {
-        alert("Please complete the transfer manually and return to this page.");
-        showStep(4);
+        if (!selectedBank) {
+          showErrorModal("Please select a bank first.");
+          return;
+        }
+
+        console.log("Showing manual transfer instructions");
+        showManualTransferInstructions();
       };
     }
 
     // Contact WhatsApp button
     const contactWhatsAppBtn = document.getElementById("contact-whatsapp");
     if (contactWhatsAppBtn) {
+      console.log("Found contact WhatsApp button");
       contactWhatsAppBtn.onclick = () => {
-        const message = `Hi! I just purchased ${currentProduct.name}. Here's my payment receipt.`;
+        if (!currentProduct || !selectedBank) {
+          showErrorModal("No product or bank selected.");
+          return;
+        }
+
+        const message = `Hi DevTools Pro! I just purchased ${
+          currentProduct.name
+        } for $${currentProduct.price.toFixed(
+          2
+        )}. My payment details are:\n\nBank: ${getBankFullName(
+          selectedBank
+        )}\nAmount: $${currentProduct.price.toFixed(
+          2
+        )}\nOrder Reference: ${generateOrderReference()}`;
+        console.log("Opening WhatsApp with message");
         window.open(
-          `https://wa.me/12345678901?text=${encodeURIComponent(message)}`,
+          `https://api.whatsapp.com/send?phone=12245376239&text=${encodeURIComponent(
+            message
+          )}`,
           "_blank"
         );
       };
@@ -425,11 +879,169 @@ document.addEventListener("DOMContentLoaded", function () {
     // Close payment button
     const closePaymentBtn = document.getElementById("close-payment");
     if (closePaymentBtn) {
+      console.log("Found close payment button");
       closePaymentBtn.onclick = () => {
+        console.log("Closing payment modal");
         closeAllModals();
         currentProduct = null;
+        selectedBank = null;
       };
     }
+
+    console.log("Payment flow setup complete");
+  }
+
+  // ============ ADDITIONAL FUNCTIONS NEEDED ============
+
+  function addPaymentStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+        .processing-overlay {
+            display: none;
+        }
+        
+        .processing-overlay.active {
+            display: flex;
+        }
+        
+        .processing-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .processing-content .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        .manual-transfer-instructions {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .instructions-content {
+            margin: 1.5rem 0;
+        }
+        
+        .transfer-details {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            border: 1px solid #e9ecef;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .detail-item span {
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .instructions-steps {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #f1faee;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .instructions-steps ol {
+            margin: 0.5rem 0 0 1rem;
+            padding-left: 1rem;
+        }
+        
+        .instructions-steps li {
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+        
+        .instructions-note {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .instructions-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .instructions-actions button {
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .error-message, .success-message {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .error-message i {
+            font-size: 3rem;
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        
+        .success-message i {
+            font-size: 3rem;
+            color: #28a745;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function showStep(stepNumber) {
+    currentStep = stepNumber;
+    document.querySelectorAll(".payment-step").forEach((step) => {
+      step.classList.remove("active");
+    });
+    const stepElement = document.getElementById(`step${stepNumber}`);
+    if (stepElement) {
+      stepElement.classList.add("active");
+    }
+    console.log("Showing step:", stepNumber);
+  }
+
+  // ============ INITIALIZE APP ============
+
+  function initApp() {
+    console.log("Initializing app...");
+    addPaymentStyles();
+    setupEventListeners();
+    loadProducts();
+    setupTestimonialSlider();
+    console.log("App initialized successfully");
   }
 
   function showStep(stepNumber) {
