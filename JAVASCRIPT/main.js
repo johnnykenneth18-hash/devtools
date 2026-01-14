@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentProduct = null;
   let selectedBank = null;
   let currentStep = 1;
+  let contactWhatsAppBtn = null; // Declare globally
 
   // Initialize the app
   initApp();
