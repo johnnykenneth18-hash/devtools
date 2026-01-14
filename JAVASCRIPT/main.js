@@ -761,6 +761,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ============ MAIN SETUP PAYMENT FLOW FUNCTION ============
 
+
+  // ============ PAYMENT HELPER FUNCTIONS ============
+
   function setupPaymentFlow() {
     console.log("Setting up payment flow...");
 
@@ -847,8 +850,8 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     }
 
-    // Contact WhatsApp button
-    const contactWhatsAppBtn = document.getElementById("contact-whatsapp");
+    // Contact WhatsApp button - GLOBAL VARIABLE
+    contactWhatsAppBtn = document.getElementById("contact-whatsapp");
     if (contactWhatsAppBtn) {
       console.log("Found contact WhatsApp button");
       contactWhatsAppBtn.onclick = () => {
@@ -861,7 +864,7 @@ document.addEventListener("DOMContentLoaded", function () {
           currentProduct.name
         } for $${currentProduct.price.toFixed(
           2
-        )}. My payment details are:\n\nBank: ${getBankFullName(
+        )}. My payment details are:\n\nPayment Method: ${getBankFullName(
           selectedBank
         )}\nAmount: $${currentProduct.price.toFixed(
           2
